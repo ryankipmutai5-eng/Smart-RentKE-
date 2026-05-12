@@ -1,65 +1,125 @@
-import Image from "next/image";
+"use client"
+
+import { useState, useEffect } from 'react'
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { CreditCard, Users, Clock, AlertCircle } from "lucide-react";
+import axios from 'axios'
 
 export default function Home() {
+  const [stats, setStats] = useState([
+    { name: 'Total Collected', value: 'KES 0', icon: CreditCard, color: 'text-emerald-600' },
+    { name: 'Pending This Month', value: 'KES 0', icon: Clock, color: 'text-yellow-600' },
+    { name: 'Overdue / Debt', value: 'KES 0', icon: AlertCircle, color: 'text-red-600' },
+    { name: 'Total Tenants', value: '0', icon: Users, color: 'text-blue-600' },
+  ])
+  const [recentPayments, setRecentPayments] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
+
+  const fetchDashboardData = async () => {
+    try {
+      const [tenantsRes, paymentsRes] = await Promise.all([
+        axios.get('/api/tenants'),
+        axios.get('/api/payments')
+      ])
+
+      const tenants = tenantsRes.data
+      const payments = paymentsRes.data
+
+      const totalCollected = payments
+        .filter((p: any) => p.status === 'successful')
+        .reduce((acc: number, p: any) => acc + p.amount, 0)
+
+      const pendingAmount = payments
+        .filter((p: any) => p.status === 'pending')
+        .reduce((acc: number, p: any) => acc + p.amount, 0)
+
+      const overdueAmount = payments
+        .filter((p: any) => p.status === 'failed')
+        .reduce((acc: number, p: any) => acc + p.amount, 0)
+
+      setStats([
+        { name: 'Total Collected', value: `KES ${totalCollected.toLocaleString()}`, icon: CreditCard, color: 'text-emerald-600' },
+        { name: 'Pending This Month', value: `KES ${pendingAmount.toLocaleString()}`, icon: Clock, color: 'text-yellow-600' },
+        { name: 'Overdue / Debt', value: `KES ${overdueAmount.toLocaleString()}`, icon: AlertCircle, color: 'text-red-600' },
+        { name: 'Total Tenants', value: tenants.length.toString(), icon: Users, color: 'text-blue-600' },
+      ])
+
+      setRecentPayments(payments.slice(0, 5))
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600 text-sm">Welcome back, here is your property overview.</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat) => (
+          <Card key={stat.name} className="flex items-center space-x-4">
+            <div className={stat.color}>
+              <stat.icon className="h-8 w-8" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">{stat.name}</p>
+              <p className="text-xl font-bold text-gray-900">{stat.value}</p>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Recent Payments Table */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Recent Payments</h2>
+          <button className="text-emerald-600 text-sm font-medium hover:underline">View all</button>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        <Card className="p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-6 py-3 font-semibold">Tenant</th>
+                  <th className="px-6 py-3 font-semibold">House</th>
+                  <th className="px-6 py-3 font-semibold">Amount</th>
+                  <th className="px-6 py-3 font-semibold">Date</th>
+                  <th className="px-6 py-3 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {recentPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No recent payments.</td>
+                  </tr>
+                ) : (
+                  recentPayments.map((payment: any) => (
+                    <tr key={payment.id} className="hover:bg-gray-50 text-sm">
+                      <td className="px-6 py-4 font-medium text-gray-900">{payment.tenant.name}</td>
+                      <td className="px-6 py-4 text-gray-600">{payment.tenant.house_number}</td>
+                      <td className="px-6 py-4 text-gray-900 font-semibold">KES {payment.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-gray-600">{new Date(payment.created_at).toLocaleDateString()}</td>
+                      <td className="px-6 py-4">
+                        <Badge variant={payment.status as any}>{payment.status}</Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
