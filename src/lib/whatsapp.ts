@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from 'axios'
 
 export async function sendWhatsAppMessage({
   phone,
@@ -6,13 +6,12 @@ export async function sendWhatsAppMessage({
   instanceId,
   token
 }: {
-  phone: string;
-  message: string;
-  instanceId: string;
-  token: string;
+  phone: string
+  message: string
+  instanceId: string
+  token: string
 }) {
   try {
-    // Assuming Evolution API structure
     const response = await axios.post(
       `https://api.evolution-api.com/message/sendText/${instanceId}`,
       {
@@ -25,10 +24,14 @@ export async function sendWhatsAppMessage({
           'Content-Type': 'application/json',
         },
       }
-    );
-    return response.data;
+    )
+    return response.data
   } catch (error: any) {
-    console.error('WhatsApp Error:', error.response?.data || error.message);
-    // Don't throw, just log. Payment success is more important than the notification.
+    // Sanitized logging — never log raw error response bodies which may contain tokens
+    console.error('WhatsApp notification failed', {
+      status: error.response?.status,
+      endpoint: 'sendText',
+    })
+    // Don't throw — payment success is more important than the notification
   }
 }

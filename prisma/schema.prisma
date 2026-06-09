@@ -3,52 +3,225 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-model Landlord {
-  id                    String   @id @default(cuid())
-  name                  String
-  email                 String   @unique
-  phone                 String?
-  payhero_api_key       String?
-  payhero_merchant_id   String?
-  whatsapp_api_token    String?
-  whatsapp_instance_id  String?
-  tenants               Tenant[]
-  payments              Payment[]
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
-}
-
+// 1. tenants (The Organization)
 model Tenant {
-  id            String    @id @default(cuid())
-  landlord_id   String
-  landlord      Landlord  @relation(fields: [landlord_id], references: [id])
-  name          String
-  phone         String
-  house_number  String
-  rent_amount   Float
-  due_date      Int       @default(1) // Day of the month
-  is_active     Boolean   @default(true)
-  payments      Payment[]
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String
+  slug                 String   @unique
+  payhero_api_key      String?
+  payhero_merchant_id  String?
+  whatsapp_api_token   String?
+  whatsapp_instance_id String?
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  users                  User[]
+  properties             Property[]
+  units                  Unit[]
+  tenants_profile        TenantProfile[]
+  leases                 Lease[]
+  rent_payments          RentPayment[]
+  maintenance_tickets    MaintenanceTicket[]
+  whatsapp_conversations WhatsappConversation[]
+  whatsapp_messages      WhatsappMessage[]
+  notifications          Notification[]
+  audit_logs             AuditLog[]
+
+  @@map("tenants")
 }
 
-model Payment {
-  id                 String    @id @default(cuid())
-  tenant_id          String
-  tenant             Tenant    @relation(fields: [tenant_id], references: [id])
-  landlord_id        String
-  landlord           Landlord  @relation(fields: [landlord_id], references: [id])
-  amount             Float
-  service_fee        Float     @default(20.0)
+// 2. users
+model User {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email      String   @unique
+  role       String   @default("staff") // admin, staff, viewer
+  tenant_id  String   @db.Uuid
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([tenant_id])
+  @@map("users")
+}
+
+// 3. properties
+model Property {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  address    String?
+  tenant_id  String   @db.Uuid
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  units      Unit[]
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([tenant_id])
+  @@map("properties")
+}
+
+// 4. units
+model Unit {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unit_number String
+  property_id String   @db.Uuid
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  tenant_id   String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  rent_amount Decimal  @db.Decimal(12, 2)
+  status      String   @default("vacant") // vacant, occupied, maintenance
+  leases      Lease[]
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([property_id])
+  @@index([tenant_id])
+  @@map("units")
+}
+
+// 5. tenants_profile (The renters)
+model TenantProfile {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  phone      String
+  email      String?
+  tenant_id  String   @db.Uuid
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  leases     Lease[]
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([tenant_id])
+  @@map("tenants_profile")
+}
+
+// 6. leases
+model Lease {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_profile_id String        @db.Uuid
+  tenant_profile    TenantProfile @relation(fields: [tenant_profile_id], references: [id], onDelete: Cascade)
+  unit_id           String        @db.Uuid
+  unit              Unit          @relation(fields: [unit_id], references: [id], onDelete: Cascade)
+  tenant_id         String        @db.Uuid
+  tenant            Tenant        @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  start_date        DateTime      @db.Timestamptz(6)
+  end_date          DateTime?     @db.Timestamptz(6)
+  rent_amount       Decimal       @db.Decimal(12, 2)
+  deposit_amount    Decimal       @db.Decimal(12, 2)
+  status            String        @default("active") // active, terminated, expired
+  ijarah_terms      Json?
+  rent_payments     RentPayment[]
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([tenant_profile_id])
+  @@index([unit_id])
+  @@index([tenant_id])
+  @@map("leases")
+}
+
+// 7. rent_payments
+model RentPayment {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lease_id           String    @db.Uuid
+  lease              Lease     @relation(fields: [lease_id], references: [id], onDelete: Cascade)
+  tenant_id          String    @db.Uuid
+  tenant             Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  amount             Decimal   @db.Decimal(12, 2)
+  service_fee        Decimal   @default(20.00) @db.Decimal(12, 2)
   status             String    @default("pending") // pending, successful, failed
   payhero_reference  String?
   external_reference String?
-  paid_at            DateTime?
-  created_at         DateTime  @default(now())
-  updated_at         DateTime  @updatedAt
+  paid_at            DateTime? @db.Timestamptz(6)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([lease_id])
+  @@index([tenant_id])
+  @@map("rent_payments")
+}
+
+// 8. maintenance_tickets
+model MaintenanceTicket {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id   String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  unit_id     String?  @db.Uuid
+  description String
+  status      String   @default("open") // open, in-progress, resolved, closed
+  priority    String   @default("medium") // low, medium, high
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([tenant_id])
+  @@map("maintenance_tickets")
+}
+
+// 9. whatsapp_conversations
+model WhatsappConversation {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id     String            @db.Uuid
+  tenant        Tenant            @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  contact_phone String
+  messages      WhatsappMessage[]
+  created_at    DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([tenant_id])
+  @@map("whatsapp_conversations")
+}
+
+// 10. whatsapp_messages
+model WhatsappMessage {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversation_id String               @db.Uuid
+  conversation    WhatsappConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  tenant_id       String               @db.Uuid
+  tenant          Tenant               @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  direction       String // inbound, outbound
+  content         String
+  created_at      DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([conversation_id])
+  @@index([tenant_id])
+  @@map("whatsapp_messages")
+}
+
+// 11. notifications
+model Notification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id  String   @db.Uuid
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  type       String // whatsapp, sms, email
+  recipient  String
+  content    String
+  status     String   @default("pending") // pending, sent, failed
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([tenant_id])
+  @@map("notifications")
+}
+
+// 12. audit_logs
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id  String   @db.Uuid
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user_id    String?  @db.Uuid
+  action     String
+  entity     String
+  entity_id  String?
+  details    Json?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([tenant_id])
+  @@map("audit_logs")
 }
