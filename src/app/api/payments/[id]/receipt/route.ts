@@ -1,69 +1,56 @@
-import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { jsPDF } from 'jspdf'
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { generateReceiptPDF } from '@/lib/mpesa/receipt';
 
 export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
+  const tenantId = request.headers.get('x-tenant-id');
+  const paymentId = params.id;
+
+  if (!tenantId) {
+    return NextResponse.json({ error: 'Tenant ID missing' }, { status: 400 });
+  }
+
   try {
-    const { id } = await params
-    const payment = await prisma.payment.findUnique({
-      where: { id },
+    const payment = await prisma.rentPayment.findFirst({
+      where: {
+        id: paymentId,
+        tenant_id: tenantId,
+      },
       include: {
-        tenant: true,
-        landlord: true
+        lease: {
+          include: {
+            tenant_profile: true,
+            unit: {
+              include: {
+                property: true,
+              }
+            }
+          }
+        }
       }
-    })
+    });
 
-    if (!payment || payment.status !== 'successful') {
-      return NextResponse.json({ error: 'Payment not found or not successful' }, { status: 404 })
+    if (!payment) {
+      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
 
-    const doc = new jsPDF()
-
-    // Add content to PDF
-    doc.setFontSize(22)
-    doc.text('RENT RECEIPT', 105, 20, { align: 'center' })
-    
-    doc.setFontSize(12)
-    doc.text(`Receipt No: ${payment.id}`, 20, 40)
-    doc.text(`Date: ${new Date(payment.paid_at!).toLocaleDateString()}`, 20, 50)
-    
-    doc.line(20, 60, 190, 60)
-    
-    doc.text('Landlord:', 20, 70)
-    doc.text(payment.landlord.name, 60, 70)
-    
-    doc.text('Tenant:', 20, 80)
-    doc.text(payment.tenant.name, 60, 80)
-    
-    doc.text('House No:', 20, 90)
-    doc.text(payment.tenant.house_number, 60, 90)
-    
-    doc.line(20, 100, 190, 100)
-    
-    doc.setFontSize(14)
-    doc.text('Amount Paid:', 20, 115)
-    doc.text(`KES ${payment.amount.toLocaleString()}`, 60, 115)
-    
-    doc.setFontSize(10)
-    doc.text('Thank you for your payment.', 105, 140, { align: 'center' })
-    
-    if (payment.payhero_reference) {
-      doc.text(`MPESA Reference: ${payment.payhero_reference}`, 105, 150, { align: 'center' })
+    if (payment.status !== 'successful') {
+      return NextResponse.json({ error: 'Receipt only available for successful payments' }, { status: 400 });
     }
 
-    const pdfOutput = doc.output('arraybuffer')
+    const pdfBuffer = generateReceiptPDF(payment);
 
-    return new Response(pdfOutput, {
+    return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="receipt-${payment.id}.pdf"`
-      }
-    })
+        'Content-Disposition': `attachment; filename=receipt-${paymentId}.pdf`,
+      },
+    });
   } catch (error) {
-    console.error('Error generating receipt:', error)
-    return NextResponse.json({ error: 'Failed to generate receipt' }, { status: 500 })
+    console.error('Error generating receipt:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
