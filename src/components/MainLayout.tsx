@@ -3,25 +3,32 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Users, CreditCard, Settings, Plus } from 'lucide-react'
+import { Home, Users, CreditCard, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Tenants', href: '/tenants', icon: Users },
-  { name: 'Payments', href: '/payments', icon: CreditCard },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Tenants', href: '/dashboard/tenants', icon: Users },
+  { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
+  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+
+  const isActive = (href: string) => {
+    if (href === '/dashboard') return pathname === '/dashboard'
+    return pathname.startsWith(href)
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar - Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200">
         <div className="p-6">
-          <h1 className="text-xl font-bold text-emerald-600">Smart-Rent KE</h1>
+          <Link href="/dashboard" className="text-xl font-bold text-emerald-600 hover:text-emerald-700 transition">
+            Smart-Rent KE
+          </Link>
         </div>
         <nav className="flex-1 px-4 space-y-1">
           {navItems.map((item) => (
@@ -30,7 +37,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               href={item.href}
               className={cn(
                 "flex items-center px-4 py-2 text-sm font-medium rounded-md transition",
-                pathname === item.href
+                isActive(item.href)
                   ? "bg-emerald-50 text-emerald-600"
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               )}
@@ -50,7 +57,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             href={item.href}
             className={cn(
               "flex flex-col items-center justify-center w-full h-full",
-              pathname === item.href
+              isActive(item.href)
                 ? "text-emerald-600"
                 : "text-gray-500"
             )}
