@@ -117,6 +117,7 @@ model Lease {
   end_date          DateTime?     @db.Timestamptz(6)
   rent_amount       Decimal       @db.Decimal(12, 2)
   deposit_amount    Decimal       @db.Decimal(12, 2)
+  due_day           Int           @default(1)
   status            String        @default("active") // active, terminated, expired
   ijarah_terms      Json?
   rent_payments     RentPayment[]
@@ -172,6 +173,8 @@ model MaintenanceTicket {
 model WhatsappConversation {
   id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenant_id     String            @db.Uuid
+  tenant_profile_id String?           @db.Uuid
+  tenant_profile    TenantProfile?    @relation(fields: [tenant_profile_id], references: [id], onDelete: Cascade)
   tenant        Tenant            @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   contact_phone String
   messages      WhatsappMessage[]
@@ -188,6 +191,8 @@ model WhatsappMessage {
   conversation_id String               @db.Uuid
   conversation    WhatsappConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
   tenant_id       String               @db.Uuid
+  tenant_profile_id String?              @db.Uuid
+  tenant_profile    TenantProfile?       @relation(fields: [tenant_profile_id], references: [id], onDelete: Cascade)
   tenant          Tenant               @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   direction       String // inbound, outbound
   content         String
