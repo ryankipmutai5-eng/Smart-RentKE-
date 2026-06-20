@@ -20,8 +20,8 @@ export default function PaymentsPage() {
   const fetchData = async () => {
     try {
       const [tenantsRes, paymentsRes] = await Promise.all([
-        axios.get('/api/tenants'),
-        axios.get('/api/payments')
+        axios.get('/api/tenant-profiles'),
+        axios.get('/api/payments/history')
       ])
       setTenants(tenantsRes.data)
       setPayments(paymentsRes.data)
@@ -32,10 +32,13 @@ export default function PaymentsPage() {
     }
   }
 
-  const handleRequestPayment = async (tenantId: string, amount: number) => {
-    setProcessingId(tenantId)
+  const handleRequestPayment = async (leaseId: string, phone: string) => {
+    setProcessingId(leaseId)
     try {
-      const response = await axios.post('/api/payments/stk-push', { tenantId, amount })
+      const response = await axios.post('/api/payments/collect', { 
+        lease_id: leaseId, 
+        phone 
+      })
       alert('STK Push initiated successfully!')
       fetchData()
     } catch (error: any) {
@@ -60,30 +63,37 @@ export default function PaymentsPage() {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">Collect Rent</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tenants.map((tenant: any) => (
-            <Card key={tenant.id} className="flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-gray-900">{tenant.name}</h3>
-                  <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">{tenant.house_number}</span>
+          {tenants.map((tenant: any) => {
+            const activeLease = tenant.leases?.[0]
+            if (!activeLease) return null
+
+            return (
+              <Card key={tenant.id} className="flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-gray-900">{tenant.name}</h3>
+                    <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                      {activeLease.unit.unit_number}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-4">Amount: KES {Number(activeLease.rent_amount).toLocaleString()}</p>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">Amount: KES {tenant.rent_amount.toLocaleString()}</p>
-              </div>
-              <Button 
-                onClick={() => handleRequestPayment(tenant.id, tenant.rent_amount)}
-                disabled={processingId === tenant.id}
-                className="w-full flex items-center justify-center"
-              >
-                {processingId === tenant.id ? (
-                  "Processing..."
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" /> Request Payment
-                  </>
-                )}
-              </Button>
-            </Card>
-          ))}
+                <Button 
+                  onClick={() => handleRequestPayment(activeLease.id, tenant.phone)}
+                  disabled={processingId === activeLease.id}
+                  className="w-full flex items-center justify-center"
+                >
+                  {processingId === activeLease.id ? (
+                    "Processing..."
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" /> Request Payment
+                    </>
+                  )}
+                </Button>
+              </Card>
+            )
+          })}
         </div>
       </div>
 
@@ -110,9 +120,15 @@ export default function PaymentsPage() {
                 ) : (
                   payments.map((payment: any) => (
                     <tr key={payment.id} className="hover:bg-gray-50 text-sm">
-                      <td className="px-6 py-4 font-medium text-gray-900">{payment.tenant.name}</td>
-                      <td className="px-6 py-4 text-gray-600">{payment.tenant.house_number}</td>
-                      <td className="px-6 py-4 text-gray-900 font-semibold">KES {payment.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        {payment.lease.tenant_profile.name}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {payment.lease.unit.unit_number}
+                      </td>
+                      <td className="px-6 py-4 text-gray-900 font-semibold">
+                        KES {Number(payment.amount).toLocaleString()}
+                      </td>
                       <td className="px-6 py-4">
                         <Badge variant={payment.status as any}>{payment.status}</Badge>
                       </td>

@@ -2,16 +2,16 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient({})
 
 async function main() {
-  const landlord = await prisma.landlord.upsert({
-    where: { email: 'admin@smartrent.ke' },
+  const tenant = await prisma.tenant.upsert({
+    where: { slug: 'main-tenant' },
     update: {},
     create: {
-      name: 'Main Admin',
-      email: 'admin@smartrent.ke',
-      phone: '254700000000',
+      name: 'Main Property Management',
+      slug: 'main-tenant',
     },
   })
-  console.log({ landlord })
+  
+  console.log('Seed tenant created:', { id: tenant.id, name: tenant.name })
 }
 
 main()
