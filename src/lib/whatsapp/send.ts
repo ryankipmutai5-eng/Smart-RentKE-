@@ -1,10 +1,18 @@
 import axios from 'axios';
 
-export async function sendWhatsAppMessage(phone: string, message: string) {
-  const apiUrl = process.env.WHATSAPP_API_URL;
-  const apiToken = process.env.WHATSAPP_API_TOKEN;
-  const instanceId = process.env.WHATSAPP_INSTANCE_ID;
-
+export async function sendWhatsAppMessage({
+  phone,
+  message,
+  apiUrl = process.env.WHATSAPP_API_URL,
+  apiToken,
+  instanceId
+}: {
+  phone: string;
+  message: string;
+  apiUrl?: string;
+  apiToken: string;
+  instanceId: string;
+}) {
   if (!apiUrl || !apiToken || !instanceId) {
     console.error('WhatsApp API config missing');
     return false;

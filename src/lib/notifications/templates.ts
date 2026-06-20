@@ -7,4 +7,8 @@ export const templates = {
     en: (name: string, amount: number, dueDate: string) => `Hi ${name}, this is a reminder that your rent of KES ${amount} is due on ${dueDate}. Please pay via M-Pesa to avoid penalties. [AI Assistant Disclosure: This is an automated message].`,
     sw: (name: string, amount: number, dueDate: string) => `Habari ${name}, huu ni ukumbusho kuwa kodi yako ya KES ${amount} inapaswa kulipwa kufikia ${dueDate}. Tafadhali lipa kupitia M-Pesa ili kuepuka faini. [Ujumbe huu umetolewa na mfumo wa kiotomatiki].`,
   },
+  lease_expiry: {
+    en: (name: string, _: any, expiryDate: string) => `Hi ${name}, your lease is expiring on ${expiryDate}. Please contact management for renewal. [AI Assistant Disclosure: This is an automated message].`,
+    sw: (name: string, _: any, expiryDate: string) => `Habari ${name}, mkataba wako unakamilika tarehe ${expiryDate}. Tafadhali wasiliana na usimamizi kwa ajili ya mkataba mpya. [Ujumbe huu umetolewa na mfumo wa kiotomatiki].`,
+  },
 };

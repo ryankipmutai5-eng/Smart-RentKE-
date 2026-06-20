@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendNotification } from '@/lib/notifications/router';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +13,13 @@ export async function POST(request: NextRequest) {
 
     const payment = await prisma.rentPayment.findFirst({
       where: { payhero_reference: checkoutRequestID },
+      include: {
+        lease: {
+          include: {
+            tenant_profile: true,
+          }
+        }
+      }
     });
 
     if (!payment) {
@@ -29,7 +37,7 @@ export async function POST(request: NextRequest) {
       const callbackMetadata = stkCallback.CallbackMetadata.Item;
       const mpesaReceiptNumber = callbackMetadata.find((item: any) => item.Name === 'MpesaReceiptNumber')?.Value;
       
-      await prisma.rentPayment.update({
+      const updatedPayment = await prisma.rentPayment.update({
         where: { id: payment.id },
         data: {
           status: 'successful',
@@ -38,8 +46,17 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // TODO: Trigger WhatsApp notification (Phase 6)
-      // TODO: Generate PDF receipt (Phase 5)
+      // Trigger WhatsApp notification (Phase 6)
+      if (payment.lease?.tenant_profile_id) {
+        await sendNotification(
+          payment.lease.tenant_profile_id,
+          'payment_received',
+          {
+            amount: Number(payment.amount),
+            ref: mpesaReceiptNumber
+          }
+        ).catch(err => console.error('Failed to send notification:', err));
+      }
       
     } else {
       // Failed

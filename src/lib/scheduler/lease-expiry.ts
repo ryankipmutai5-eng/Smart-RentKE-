@@ -1,5 +1,5 @@
 import prisma from '../prisma';
-import { sendWhatsAppMessage } from '../whatsapp/send';
+import { sendNotification } from '../notifications/router';
 import { addDays, isSameDay, format } from 'date-fns';
 
 export async function processLeaseExpiryReminders() {
@@ -28,19 +28,13 @@ export async function processLeaseExpiryReminders() {
       const reminderDate = addDays(endDate, offset);
       
       if (isSameDay(today, reminderDate)) {
-        const message = `Hi ${lease.tenant_profile.name}, your lease for ${lease.unit_id} is expiring on ${format(endDate, 'do MMMM yyyy')}. Please contact management for renewal. [AI Assistant Disclosure: This is an automated message].`;
-        
-        await sendWhatsAppMessage(lease.tenant_profile.phone, message);
-        
-        await prisma.notification.create({
-          data: {
-            tenant_id: lease.tenant_id,
-            type: 'whatsapp',
-            recipient: lease.tenant_profile.phone,
-            content: message,
-            status: 'sent',
-          },
-        });
+        await sendNotification(
+          lease.tenant_profile_id,
+          'lease_expiry',
+          {
+            ref: format(endDate, 'do MMMM yyyy')
+          }
+        ).catch(err => console.error('Failed to send lease expiry reminder:', err));
       }
     }
 
