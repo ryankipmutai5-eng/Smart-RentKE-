@@ -3,13 +3,14 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Users, CreditCard, Settings } from 'lucide-react'
+import { Home, Users, CreditCard, Settings, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Tenants', href: '/dashboard/tenants', icon: Users },
   { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
+  { name: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 

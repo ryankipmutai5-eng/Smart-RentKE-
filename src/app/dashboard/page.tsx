@@ -22,34 +22,17 @@ export default function Home() {
 
   const fetchDashboardData = async () => {
     try {
-      const [tenantsRes, paymentsRes] = await Promise.all([
-        axios.get('/api/tenants'),
-        axios.get('/api/payments')
-      ])
-
-      const tenants = tenantsRes.data
-      const payments = paymentsRes.data
-
-      const totalCollected = payments
-        .filter((p: any) => p.status === 'successful')
-        .reduce((acc: number, p: any) => acc + p.amount, 0)
-
-      const pendingAmount = payments
-        .filter((p: any) => p.status === 'pending')
-        .reduce((acc: number, p: any) => acc + p.amount, 0)
-
-      const overdueAmount = payments
-        .filter((p: any) => p.status === 'failed')
-        .reduce((acc: number, p: any) => acc + p.amount, 0)
+      const response = await axios.get('/api/dashboard/stats')
+      const { stats: dashboardStats, recentPayments: payments } = response.data
 
       setStats([
-        { name: 'Total Collected', value: `KES ${totalCollected.toLocaleString()}`, icon: CreditCard, color: 'text-emerald-600' },
-        { name: 'Pending This Month', value: `KES ${pendingAmount.toLocaleString()}`, icon: Clock, color: 'text-yellow-600' },
-        { name: 'Overdue / Debt', value: `KES ${overdueAmount.toLocaleString()}`, icon: AlertCircle, color: 'text-red-600' },
-        { name: 'Total Tenants', value: tenants.length.toString(), icon: Users, color: 'text-blue-600' },
+        { name: 'Total Collected', value: `KES ${dashboardStats.totalCollected.toLocaleString()}`, icon: CreditCard, color: 'text-emerald-600' },
+        { name: 'Pending This Month', value: `KES ${dashboardStats.pendingAmount.toLocaleString()}`, icon: Clock, color: 'text-yellow-600' },
+        { name: 'Overdue / Debt', value: `KES ${dashboardStats.overdueAmount.toLocaleString()}`, icon: AlertCircle, color: 'text-red-600' },
+        { name: 'Total Tenants', value: dashboardStats.totalTenants.toString(), icon: Users, color: 'text-blue-600' },
       ])
 
-      setRecentPayments(payments.slice(0, 5))
+      setRecentPayments(payments)
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
@@ -105,8 +88,8 @@ export default function Home() {
                 ) : (
                   recentPayments.map((payment: any) => (
                     <tr key={payment.id} className="hover:bg-gray-50 text-sm">
-                      <td className="px-6 py-4 font-medium text-gray-900">{payment.tenant.name}</td>
-                      <td className="px-6 py-4 text-gray-600">{payment.tenant.house_number}</td>
+                      <td className="px-6 py-4 font-medium text-gray-900">{payment.tenant_name}</td>
+                      <td className="px-6 py-4 text-gray-600">{payment.house_number}</td>
                       <td className="px-6 py-4 text-gray-900 font-semibold">KES {payment.amount.toLocaleString()}</td>
                       <td className="px-6 py-4 text-gray-600">{new Date(payment.created_at).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
